@@ -23,21 +23,30 @@ local function _UploadUserId(req_id, post, carrier)
 end
 
 local function _UploadText(req_id, post, carrier)
-  local GenericObjectPool = require "GenericObjectPool"
-  local TextServiceClient = require "social_network_TextService"
+  local redis = require "resty.redis"
+  local red = redis:new()
   local ngx = ngx
 
-  local text_client = GenericObjectPool:connection(
-      TextServiceClient, "text-service", 9090)
-  local status, err = pcall(text_client.UploadText, text_client, req_id,
-      post.text, carrier)
-  if not status then
+  red:set_timeouts(1000, 1000, 1000)
+  local ok, err = red:connect("10.0.1.3", 11211)
+  if not ok then
+    ngx.say("failed to connect: ", err)
+    return
+  end
+
+  ok, err = red:js("test")
+  if not ok then
+    ngx.say("js test failed: ", err)
+    return
+  end
+
+  if not ok then
     ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
     ngx.say("Upload text failed: " .. err.message)
     ngx.log(ngx.ERR, "Upload text failed: " .. err.message)
     ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
   end
-  GenericObjectPool:returnConnection(text_client)
+  ok, err = red:close()
 end
 
 local function _UploadUniqueId(req_id, post, carrier)
@@ -84,18 +93,11 @@ local function _UploadMedia(req_id, post, carrier)
 end
 
 function _M.ComposePost()
-  local bridge_tracer = require "opentracing_bridge_tracer"
   local ngx = ngx
   local cjson = require "cjson"
   local jwt = require "resty.jwt"
 
   local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
-  local tracer = bridge_tracer.new_from_global()
-  local parent_span_context = tracer:binary_extract(ngx.var.opentracing_binary_context)
-  local span = tracer:start_span("ComposePost",
-      { ["references"] = { { "child_of", parent_span_context } } })
-  local carrier = {}
-  tracer:text_map_inject(span:context(), carrier)
 
   ngx.req.read_body()
   local post = ngx.req.get_post_args()
@@ -109,10 +111,10 @@ function _M.ComposePost()
   end
 
   local threads = {
-    ngx.thread.spawn(_UploadMedia, req_id, post, carrier),
-    ngx.thread.spawn(_UploadUserId, req_id, post, carrier),
+--    ngx.thread.spawn(_UploadMedia, req_id, post, carrier),
+--    ngx.thread.spawn(_UploadUserId, req_id, post, carrier),
     ngx.thread.spawn(_UploadText, req_id, post, carrier),
-    ngx.thread.spawn(_UploadUniqueId, req_id, post, carrier)
+--    ngx.thread.spawn(_UploadUniqueId, req_id, post, carrier)
   }
 
   local status = ngx.HTTP_OK
