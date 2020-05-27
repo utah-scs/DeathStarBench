@@ -27,7 +27,7 @@ OBJ  := $(patsubst %.c,$(ODIR)/%.o,$(SRC)) $(ODIR)/bytecode.o
 LDIR     = deps/luajit/src
 LIBS    := -lluajit $(LIBS)
 CFLAGS  += -I$(LDIR)
-LDFLAGS += -L$(LDIR)
+LDFLAGS += -L$(LDIR) -g -no-pie
 
 all: $(BIN)
 
