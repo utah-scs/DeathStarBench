@@ -28,13 +28,14 @@ local function _UploadText(req_id, post, carrier)
   local ngx = ngx
 
   red:set_timeouts(1000, 1000, 1000)
-  local ok, err = red:connect("10.0.1.3", 11211)
+  local ok, err = red:connect("155.98.36.96", 11211)
   if not ok then
     ngx.say("failed to connect: ", err)
     return
   end
 
-  ok, err = red:js("test")
+  ok, err = red:js("test", post.text)
+  ngx.log(ngx.ERR, "post text: " .. post.text)
   if not ok then
     ngx.say("js test failed: ", err)
     return
@@ -126,7 +127,7 @@ function _M.ComposePost()
     end
   end
   ngx.say("Successfully upload post")
-  span:finish()
+--  span:finish()
   ngx.exit(status)
 end
 

@@ -5,19 +5,19 @@ local function _StrIsEmpty(s)
 end
 
 function _M.RegisterUser()
-  local bridge_tracer = require "opentracing_bridge_tracer"
   local ngx = ngx
-  local GenericObjectPool = require "GenericObjectPool"
-  local UserServiceClient = require "social_network_UserService"
 
   local req_id = tonumber(string.sub(ngx.var.request_id, 0, 15), 16)
-  local tracer = bridge_tracer.new_from_global()
-  local parent_span_context = tracer:binary_extract(
-      ngx.var.opentracing_binary_context)
-  local span = tracer:start_span("RegisterUser",
-      {["references"] = {{"child_of", parent_span_context}}})
-  local carrier = {}
-  tracer:text_map_inject(span:context(), carrier)
+  local redis = require "resty.redis"
+  local red = redis:new()
+  local ngx = ngx
+
+  red:set_timeouts(1000, 1000, 1000)
+  local ok, err = red:connect("155.98.36.96", 11211)
+  if not ok then
+    ngx.say("failed to connect: ", err)
+    return
+  end
 
   ngx.req.read_body()
   local post = ngx.req.get_post_args()
@@ -31,26 +31,17 @@ function _M.RegisterUser()
     ngx.exit(ngx.HTTP_BAD_REQUEST)
   end
 
-  local client = GenericObjectPool:connection(UserServiceClient, "user-service", 9090)
-
-  local status, err = pcall(client.RegisterUserWithId, client, req_id, post.first_name,
-      post.last_name, post.username, post.password, tonumber(post.user_id), carrier)
-  GenericObjectPool:returnConnection(client)
-
-  if not status then
-    ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
-    if (err.message) then
-      ngx.say("User registration failure: " .. err.message)
-      ngx.log(ngx.ERR, "User registration failure: " .. err.message)
-    else
-      ngx.say("User registration failure: " .. err.message)
-      ngx.log(ngx.ERR, "User registration failure: " .. err.message)
-    end
+  ok, err = red:js("user_register", post.user_id, post.username)
+  if not ok then
+    ngx.say("User register failed: ", err)
+    return
     ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
   end
 
+--  local status, err = pcall(client.RegisterUserWithId, client, req_id, post.first_name,
+--      post.last_name, post.username, post.password, tonumber(post.user_id), carrier)
+--  GenericObjectPool:returnConnection(client)
 
-  span:finish()
 end
 
 return _M

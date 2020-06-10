@@ -67,6 +67,7 @@ void TextHandler::UploadText(
     user_mention = user_mention.substr(1, user_mention.length());
     user_mentions.emplace_back(user_mention);
     s = m.suffix().str();
+    std::cout << "user mention: " << user_mention << "\n";
   }
 
   std::vector<std::string> urls;
@@ -76,7 +77,9 @@ void TextHandler::UploadText(
     auto url = m.str();
     urls.emplace_back(url);
     s = m.suffix().str();
+    std::cout << "url: " << url << "\n";
   }
+
 
   std::future<std::vector<std::string>> shortened_urls_future = std::async(
       std::launch::async, [&](){
@@ -148,6 +151,7 @@ void TextHandler::UploadText(
     updated_text = text;
   }
 
+  std::cout << "updated text: " << updated_text << "\n";
   
   std::future<void> upload_text_future = std::async(
       std::launch::async, [&]() {
