@@ -31,7 +31,7 @@ function _M.RegisterUser()
     ngx.exit(ngx.HTTP_BAD_REQUEST)
   end
 
-  ok, err = red:js("user_register", post.user_id, post.username)
+  ok, err = red:js("user_service.js", "user_register", post.user_id, post.username)
   if not ok then
     ngx.say("User register failed: ", err)
     return

@@ -34,7 +34,7 @@ local function _UploadText(req_id, post, carrier)
     return
   end
 
-  ok, err = red:js("test", post.text)
+  ok, err = red:js("text_service.js", "upload_text",  post.text)
   ngx.log(ngx.ERR, "post text: " .. post.text)
   if not ok then
     ngx.say("js test failed: ", err)
