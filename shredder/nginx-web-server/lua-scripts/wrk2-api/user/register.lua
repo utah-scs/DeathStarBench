@@ -13,7 +13,7 @@ function _M.RegisterUser()
   local ngx = ngx
 
   red:set_timeouts(1000, 1000, 1000)
-  local ok, err = red:connect("155.98.36.96", 11211)
+  local ok, err = red:connect("10.0.1.1", 11211)
   if not ok then
     ngx.say("failed to connect: ", err)
     return
