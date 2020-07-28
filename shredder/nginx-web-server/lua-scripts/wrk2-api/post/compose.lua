@@ -35,7 +35,6 @@ local function _UploadText(req_id, post, carrier)
   end
 
   ok, err = red:js(req_id, "text_service.js", "upload_text", post.text)
-  ngx.log(ngx.ERR, "post text: " .. post.text)
   if not ok then
     ngx.say("js test failed: ", err)
     return
@@ -69,28 +68,32 @@ local function _UploadUniqueId(req_id, post, carrier)
 end
 
 local function _UploadMedia(req_id, post, carrier)
-  local GenericObjectPool = require "GenericObjectPool"
-  local MediaServiceClient = require "social_network_MediaService"
   local cjson = require "cjson"
   local ngx = ngx
 
-  local media_client = GenericObjectPool:connection(
-      MediaServiceClient, "media-service", 9090)
-  local status, err
-  if (not _StrIsEmpty(post.media_ids) and not _StrIsEmpty(post.media_types)) then
-    status, err = pcall(media_client.UploadMedia, media_client,
-        req_id, cjson.decode(post.media_types), cjson.decode(post.media_ids), carrier)
-  else
-    status, err = pcall(media_client.UploadMedia, media_client,
-        req_id, {}, {}, carrier)
+  local redis = require "resty.redis"
+  local red = redis:new()
+
+  red:set_timeouts(1000, 1000, 1000)
+  local status, err = red:connect("10.0.1.1", 11211)
+  if not status then
+    ngx.say("failed to connect: ", err)
+    return
   end
+
+  status, err = red:js(req_id, "media_service.js", "upload_media", 
+                       post.media_types, post.media_ids)
+  if not ok then
+    ngx.say("js test failed: ", err)
+    return
+  end
+
   if not status then
     ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
     ngx.say("Upload media failed: " .. err.message)
     ngx.log(ngx.ERR, "Upload media failed: " .. err.message)
     ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
   end
-  GenericObjectPool:returnConnection(media_client)
 end
 
 function _M.ComposePost()
@@ -112,7 +115,7 @@ function _M.ComposePost()
   end
 
   local threads = {
---    ngx.thread.spawn(_UploadMedia, req_id, post, carrier),
+    ngx.thread.spawn(_UploadMedia, req_id, post, carrier),
 --    ngx.thread.spawn(_UploadUserId, req_id, post, carrier),
     ngx.thread.spawn(_UploadText, req_id, post, carrier),
 --    ngx.thread.spawn(_UploadUniqueId, req_id, post, carrier)
