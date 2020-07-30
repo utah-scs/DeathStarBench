@@ -5,21 +5,27 @@ local function _StrIsEmpty(s)
 end
 
 local function _UploadUserId(req_id, post, carrier)
-  local GenericObjectPool = require "GenericObjectPool"
-  local UserServiceClient = require "social_network_UserService"
+  local redis = require "resty.redis"
+  local red = redis:new()
   local ngx = ngx
 
-  local user_client = GenericObjectPool:connection(
-      UserServiceClient, "user-service", 9090)
-  local status, err = pcall(user_client.UploadCreatorWithUserId, user_client,
-      req_id, tonumber(post.user_id), post.username, carrier)
-  if not status then
+  red:set_timeouts(1000, 1000, 1000)
+  local ok, err = red:connect("10.0.1.1", 11211)
+  if not ok then
+    ngx.say("failed to connect: ", err)
+    return
+  end
+
+  ok, err = red:js(req_id, "user_service.js", "upload_creator_with_userid",
+                   tonumber(post.user_id), post.username)
+
+  if not ok then
     ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
     ngx.say("Upload user_id failed: " .. err.message)
     ngx.log(ngx.ERR, "Upload user_id failed: " .. err.message)
     ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
   end
-  GenericObjectPool:returnConnection(user_client)
+  ok, err = red:close()
 end
 
 local function _UploadText(req_id, post, carrier)
@@ -35,10 +41,6 @@ local function _UploadText(req_id, post, carrier)
   end
 
   ok, err = red:js(req_id, "text_service.js", "upload_text", post.text)
-  if not ok then
-    ngx.say("js test failed: ", err)
-    return
-  end
 
   if not ok then
     ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
@@ -83,10 +85,6 @@ local function _UploadMedia(req_id, post, carrier)
 
   status, err = red:js(req_id, "media_service.js", "upload_media", 
                        post.media_types, post.media_ids)
-  if not ok then
-    ngx.say("js test failed: ", err)
-    return
-  end
 
   if not status then
     ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
@@ -94,6 +92,7 @@ local function _UploadMedia(req_id, post, carrier)
     ngx.log(ngx.ERR, "Upload media failed: " .. err.message)
     ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
   end
+  ok, err = red:close()
 end
 
 function _M.ComposePost()
@@ -116,7 +115,7 @@ function _M.ComposePost()
 
   local threads = {
     ngx.thread.spawn(_UploadMedia, req_id, post, carrier),
---    ngx.thread.spawn(_UploadUserId, req_id, post, carrier),
+    ngx.thread.spawn(_UploadUserId, req_id, post, carrier),
     ngx.thread.spawn(_UploadText, req_id, post, carrier),
 --    ngx.thread.spawn(_UploadUniqueId, req_id, post, carrier)
   }
