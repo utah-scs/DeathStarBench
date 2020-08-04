@@ -52,21 +52,27 @@ local function _UploadText(req_id, post, carrier)
 end
 
 local function _UploadUniqueId(req_id, post, carrier)
-  local GenericObjectPool = require "GenericObjectPool"
-  local UniqueIdServiceClient = require "social_network_UniqueIdService"
   local ngx = ngx
 
-  local unique_id_client = GenericObjectPool:connection(
-      UniqueIdServiceClient, "unique-id-service", 9090)
-  local status, err = pcall(unique_id_client.UploadUniqueId, unique_id_client,
-      req_id, tonumber(post.post_type), carrier)
+  local redis = require "resty.redis"
+  local red = redis:new()
+
+  red:set_timeouts(1000, 1000, 1000)
+  local status, err = red:connect("10.0.1.1", 11211)
+  if not status then
+    ngx.say("failed to connect: ", err)
+    return
+  end
+
+  status, err = red:js(req_id, "unique_id_service.js", "upload_unique_id",
+                       tonumber(post.post_type))
   if not status then
     ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
     ngx.say("Upload unique_id failed: " .. err.message)
     ngx.log(ngx.ERR, "Upload unique_id failed: " .. err.message)
     ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
   end
-  GenericObjectPool:returnConnection(unique_id_client)
+  ok, err = red:close()
 end
 
 local function _UploadMedia(req_id, post, carrier)
@@ -117,7 +123,7 @@ function _M.ComposePost()
     ngx.thread.spawn(_UploadMedia, req_id, post, carrier),
     ngx.thread.spawn(_UploadUserId, req_id, post, carrier),
     ngx.thread.spawn(_UploadText, req_id, post, carrier),
---    ngx.thread.spawn(_UploadUniqueId, req_id, post, carrier)
+    ngx.thread.spawn(_UploadUniqueId, req_id, post, carrier)
   }
 
   local status = ngx.HTTP_OK
