@@ -63,7 +63,7 @@ request = function()
 
   local method = "POST"
   -- Use your cluster-ip here:
-  local path = "http://localhost:8080/wrk2-api/post/compose"
+  local path = "/post/compose"
   local headers = {}
   local body
   headers["Content-Type"] = "application/x-www-form-urlencoded"
@@ -75,6 +75,7 @@ request = function()
     body   = "username=" .. username .. "&user_id=" .. user_id ..
         "&text=" .. text .. "&media_ids=" .. "&post_type=0"
   end
+  headers["Content-Length"] = string.len(body)
 
   return wrk.format(method, path, headers, body)
 end
