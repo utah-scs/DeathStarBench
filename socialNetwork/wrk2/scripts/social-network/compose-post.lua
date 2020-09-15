@@ -26,7 +26,7 @@ local function decRandom(length)
   end
 end
 
-request = function()
+local function post()
   local user_index = math.random(1, 962)
   local username = "username_" .. tostring(user_index)
   local user_id = tostring(user_index)
@@ -79,3 +79,28 @@ request = function()
 
   return wrk.format(method, path, headers, body)
 end
+
+local function test()
+  local method = "POST"
+  local path = "/test/test"
+  local headers = {}
+  local body = ""
+  headers["Content-Type"] = "application/x-www-form-urlencoded"
+  headers["Authorization"] = "Basic dXNlcjpwYXNzd29yZA=="
+  headers["Content-Length"] = string.len(body)
+  return wrk.format(method, path, headers, body)
+end
+ 
+request = function()
+  cur_time = math.floor(socket.gettime())
+  local test_ratio      = 0.6
+  local post_ratio   = 0.39
+
+  local coin = math.random()
+  if coin < test_ratio then
+    return test()
+  else
+    return post()
+  end
+end
+
