@@ -93,8 +93,7 @@ end
  
 request = function()
   cur_time = math.floor(socket.gettime())
-  local test_ratio      = 0.6
-  local post_ratio   = 0.39
+  local test_ratio      = 0
 
   local coin = math.random()
   if coin < test_ratio then

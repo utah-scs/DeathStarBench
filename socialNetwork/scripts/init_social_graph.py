@@ -4,13 +4,13 @@ import sys
 
 async def upload_follow(session, addr, user_0, user_1):
   payload = {'user_name': 'username_' + user_0, 'followee_name': 'username_' + user_1}
-  async with session.post(addr + "/wrk2-api/user/follow", data=payload) as resp:
+  async with session.post(addr + "/user/follow", data=payload) as resp:
     return await resp.text()
 
 async def upload_register(session, addr, user):
   payload = {'first_name': 'first_name_' + user, 'last_name': 'last_name_' + user,
              'username': 'username_' + user, 'password': 'password_' + user, 'user_id': user}
-  async with session.post(addr + "/wrk2-api/user/register", data=payload) as resp:
+  async with session.post(addr + "/user/register", data=payload) as resp:
     return await resp.text()
 
 
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     edges = getEdges(file)
 
   # Use your cluster-ip here:
-  addr = "http://localhost:8080"
+  addr = "http://10.0.1.1:11211"
   loop = asyncio.get_event_loop()
   future = asyncio.ensure_future(register(addr, nodes))
   loop.run_until_complete(future)
