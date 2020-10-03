@@ -1,0 +1,1 @@
+./wrk -t 4 -c 4 -d 100 -L -s ./scripts/microbenchmark.lua http://10.0.1.1:11211/microbenchmark/func -R 100 --u_latency
