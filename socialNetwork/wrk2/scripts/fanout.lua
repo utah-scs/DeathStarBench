@@ -7,7 +7,7 @@ local function test()
   local path = "/fanout/func"
   local headers = {}
   local body = ""
-  headers["MS"] = "1"
+  headers["MS"] = "10"
   headers["NUM"] = "8"
   return wrk.format(method, path, headers, body)
 end
